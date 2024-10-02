@@ -1,0 +1,73 @@
+if [ ! -f ngrok ]; then
+    wget -O ngrok https://github.com/kmille36/Docker-Ubuntu-Desktop-NoMachine/raw/main/ngrok.sh > /dev/null 2>&1
+fi
+chmod +x ngrok
+
+function goto
+{
+    label=$1
+    cd 
+    cmd=$(sed -n "/^:[[:blank:]][[:blank:]]*${label}/{:a;n;p;ba};" $0 | 
+          grep -v ':$')
+    eval "$cmd"
+    exit
+}
+
+: ngrok
+clear
+echo "Go to: https://dashboard.ngrok.com/get-started/your-authtoken"
+
+if [ -f authtoken.txt ]; then
+    CRP=$(cat authtoken.txt)
+    ./ngrok authtoken $CRP
+    echo $CRP
+else
+    while true; do
+        read -p "Paste Ngrok Authtoken: " CRP
+        if [ -z "$CRP" ]; then
+            echo "Authtoken cannot be empty. Please enter a valid authtoken."
+        else
+            echo "$CRP" > authtoken.txt
+            ./ngrok authtoken $CRP
+            break
+        fi
+    done
+fi
+
+clear
+echo "Repo: https://github.com/kmille36/Docker-Ubuntu-Desktop-NoMachine"
+echo "======================="
+echo "Pilih wilayah ngrok (untuk koneksi yang lebih baik)."
+echo "======================="
+echo "us - United States (Ohio)"
+echo "eu - Europe (Frankfurt)"
+echo "ap - Asia/Pacific (Singapore)"
+echo "au - Australia (Sydney)"
+echo "sa - South America (Sao Paulo)"
+echo "jp - Japan (Tokyo)"
+echo "in - India (Mumbai)"
+read -p "pilih wilayah ngrok: " NGROK_REGION
+
+./ngrok tcp --region $NGROK_REGION 4000 &>/dev/null &
+sleep 1
+if curl --silent --show-error http://127.0.0.1:4040/api/tunnels > /dev/null 2>&1; then echo OK; else echo "Ngrok Error! Please try again!" && sleep 1 && goto ngrok; fi
+
+docker run --rm -d --network host --privileged --name nomachine-xfce4 -e PASSWORD=123456 -e USER=user --cap-add=SYS_PTRACE --shm-size=1g thuonghai2711/nomachine-ubuntu-desktop:windows10
+clear
+echo "NoMachine: https://www.nomachine.com/download"
+echo Done! NoMachine Information:
+echo IP Address:
+curl --silent --show-error http://127.0.0.1:4040/api/tunnels | sed -nE 's/.*public_url":"tcp:..([^"]*).*/\1/p' 
+echo User: user
+echo Passwd: 123456
+echo "Status VM : "
+
+echo "Memulai penghitung waktu 1 jam"
+end=$((SECONDS+3600)) # 3600 seconds
+while [ $SECONDS -lt $end ]; do
+    remaining=$((end - SECONDS))
+    echo -en "\rWaktu yang tersisa: ${remaining}s"
+    sleep 1
+done
+
+echo -e "\nSession cloudshell telah habis"
